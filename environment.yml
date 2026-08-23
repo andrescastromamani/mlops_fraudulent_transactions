@@ -9,7 +9,14 @@ dependencies:
   - tqdm
   - ruff
   - pytest
+  - pandas
+  - numpy
+  - seaborn
+  - matplotlib
+  - scikit-learn
+  - dvc
   - pip:
     - python-dotenv
     - mkdocs
     - -e .
+    - dvc-gdrive

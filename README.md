@@ -59,3 +59,7 @@ MLOPS setup for a fraudulent transaction dataset
 
 --------
 
+## Install Dependencies
+```
+conda env update --file environment.yml --prune
+
