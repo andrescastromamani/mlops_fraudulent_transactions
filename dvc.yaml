@@ -1,0 +1,65 @@
+stages:
+  load_data:
+    cmd: python mlops_fraudulent_transactions/dataset.py
+    deps:
+      - mlops_fraudulent_transactions/dataset.py
+      - data/raw/creditcard.csv
+    outs:
+      - data/processed/dataset.csv
+
+  feature_engineering:
+    cmd: python mlops_fraudulent_transactions/features.py
+    deps:
+      - mlops_fraudulent_transactions/features.py
+      - data/processed/dataset.csv
+    params:
+      - prepare.split_ratio
+      - prepare.random_state
+    outs:
+      - data/processed/train_features.csv
+      - data/processed/train_labels.csv
+      - data/processed/test_features.csv
+      - data/processed/test_labels.csv
+
+  eda_plots:
+    cmd: python mlops_fraudulent_transactions/plots.py
+    deps:
+      - mlops_fraudulent_transactions/plots.py
+      - data/processed/dataset.csv
+    outs:
+      - reports/figures/class_distribution.png
+      - reports/figures/correlation_heatmap.png
+      - reports/figures/amounts_by_class.png
+      - reports/figures/time_distribution.png
+
+  train:
+    cmd: python mlops_fraudulent_transactions/modeling/train.py
+    deps:
+      - mlops_fraudulent_transactions/modeling/train.py
+      - mlops_fraudulent_transactions/modeling/base.py
+      - mlops_fraudulent_transactions/modeling/mlp.py
+      - mlops_fraudulent_transactions/modeling/autoencoder.py
+      - data/processed/train_features.csv
+      - data/processed/train_labels.csv
+    params:
+      - train.epochs
+      - train.batch_size
+      - train.learning_rate
+    outs:
+      - models/model_mlp.keras
+      - models/model_autoencoder.keras
+
+  evaluate:
+    cmd: python mlops_fraudulent_transactions/modeling/predict.py
+    deps:
+      - mlops_fraudulent_transactions/modeling/predict.py
+      - data/processed/test_features.csv
+      - data/processed/test_labels.csv
+      - models/model_mlp.keras
+      - models/model_autoencoder.keras
+    outs:
+      - data/processed/predictions.csv
+      - reports/figures/pr_curve_comparison.png
+    metrics:
+      - metrics/eval.json:
+          cache: false

@@ -1,0 +1,9 @@
+prepare:
+  split_ratio: 0.2
+  random_state: 42
+
+train:
+  epochs: 15
+  batch_size: 2048
+  learning_rate: 0.001
+  target_col: "Class"
