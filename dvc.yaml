@@ -1,0 +1,29 @@
+stages:
+  preprocess:
+    cmd: python mlops_fraudulent_transactions/features.py
+    deps:
+      - mlops_fraudulent_transactions/features.py
+      - data/raw/creditcard.csv
+    outs:
+      - data/processed/clean_creditcard.csv
+
+  train:
+    cmd: python mlops_fraudulent_transactions/modeling/train.py
+    deps:
+      - mlops_fraudulent_transactions/modeling/train.py
+      - data/processed/clean_creditcard.csv
+    params:
+      - prepare.split_ratio
+      - prepare.random_state
+      - train.n_estimators
+      - train.max_depth
+      - train.target_col
+    metrics:
+      - metrics/eval.json:
+          cache: false
+    plots:
+      - metrics/plots.csv:
+          template: confusion
+          x: predicted
+          y: actual
+          cache: false

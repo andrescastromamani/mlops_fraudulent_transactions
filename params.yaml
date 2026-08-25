@@ -1,0 +1,9 @@
+prepare:
+  split_ratio: 0.25
+  random_state: 42
+
+train:
+  n_estimators: 150
+  max_depth: 6
+  learning_rate: 0.01
+  target_col: "Class"
