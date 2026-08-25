@@ -101,8 +101,8 @@ stages:
       size: 2644
     - path: mlops_fraudulent_transactions/modeling/train.py
       hash: md5
-      md5: caab25d235bb13fa3431cef087576b38
-      size: 2244
+      md5: f87d3f2f78c0f0e8017820ffb428cac3
+      size: 3086
     params:
       params.yaml:
         train.batch_size: 2048
@@ -111,11 +111,11 @@ stages:
     outs:
     - path: models/model_autoencoder.keras
       hash: md5
-      md5: 9887e7c142996dbdd0758cd76c2363ff
+      md5: 8299b6464f622d1d77e3282e3018982f
       size: 54970
     - path: models/model_mlp.keras
       hash: md5
-      md5: 20a44478c977104406205f90e0d6254d
+      md5: 0d8ea0aaaa7841f6283a69837a1991ee
       size: 94122
   evaluate:
     cmd: python mlops_fraudulent_transactions/modeling/predict.py

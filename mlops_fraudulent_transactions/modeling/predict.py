@@ -1,5 +1,7 @@
 import json
 from pathlib import Path
+import mlflow
+
 
 from loguru import logger
 import typer
@@ -19,9 +21,9 @@ from sklearn.metrics import (
 )
 
 from mlops_fraudulent_transactions.config import (
-    AUTOENCODER_MODEL_PATH, 
-    FIGURES_DIR, 
-    MLP_MODEL_PATH, 
+    AUTOENCODER_MODEL_PATH,
+    FIGURES_DIR,
+    MLP_MODEL_PATH,
     PROCESSED_DATA_DIR
 )
 
@@ -155,6 +157,19 @@ def main(
     logger.success(
         f"Evaluación finalizada. Métricas guardadas en {metrics_path}")
     print(summary.to_string(index=False))
+
+    # MLflow
+    with mlflow.start_run(run_name="Evaluation_Results", nested=True):
+        # Registrar métricas numéricas obtenidas del resumen
+        for _, row in summary.iterrows():
+            model_name = row["Modelo"]
+            mlflow.log_metric(f"{model_name}_f1_score", row["F1-Score"])
+            mlflow.log_metric(f"{model_name}_pr_auc", row["PR-AUC"])
+
+        # Registrar la imagen de curvas PR como artefacto
+        pr_curve_file = FIGURES_DIR / "pr_curve_comparison.png"
+        if pr_curve_file.exists():
+            mlflow.log_artifact(str(pr_curve_file), artifact_path="plots")
 
 
 if __name__ == "__main__":

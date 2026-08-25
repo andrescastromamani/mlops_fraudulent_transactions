@@ -196,3 +196,7 @@ cython_debug/
 # Do not ignore DVC files
 *.dvc
 .gitignore
+
+# Mlflow local tracking server files
+mlruns/
+mlruns.db

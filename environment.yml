@@ -17,6 +17,7 @@ dependencies:
   - tensorflow
   - dvc
   - pip:
+    - mlflow
     - python-dotenv
     - mkdocs
     - -e .
