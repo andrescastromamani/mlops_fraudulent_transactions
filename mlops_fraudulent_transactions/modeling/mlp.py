@@ -6,8 +6,8 @@ from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 
-from house_price.config import MLP_MODEL_PATH
-from house_price.modeling.base import BaseModel
+from mlops_fraudulent_transactions.config import MLP_MODEL_PATH
+from mlops_fraudulent_transactions.modeling.base import BaseModel
 
 class MLPModel(BaseModel):
     """Supervised multi-layer perceptron for binary fraud classification."""

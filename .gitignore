@@ -1,5 +1,5 @@
 # Data
-#/data/
+/data/
 
 # Mac OS-specific storage files
 .DS_Store
@@ -194,5 +194,5 @@ cython_debug/
 #.dvc/
 
 # Do not ignore DVC files
-!*.dvc
-!.gitignore
+*.dvc
+.gitignore

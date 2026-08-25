@@ -6,8 +6,8 @@ from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 
-from house_price.config import AUTOENCODER_MODEL_PATH
-from house_price.modeling.base import BaseModel
+from mlops_fraudulent_transactions.config import AUTOENCODER_MODEL_PATH
+from mlops_fraudulent_transactions.modeling.base import BaseModel
 
 class AutoencoderModel(BaseModel):
     """Autoencoder that reconstructs normal transactions to flag anomalies."""
@@ -69,9 +69,9 @@ class AutoencoderModel(BaseModel):
 
     def anomaly_threshold(
         self,
-        X_normal: np.ndarray,
+        x_normal: np.ndarray,
         percentile: float = 95.0,
     ) -> float:
         """Derive an anomaly threshold from the errors of normal transactions."""
-        errors = self.reconstruction_error(X_normal)
+        errors = self.reconstruction_error(x_normal)
         return float(np.percentile(errors, percentile))

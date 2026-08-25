@@ -18,13 +18,19 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 
-from mlops_fraudulent_transactions.config import MODELS_DIR, PROCESSED_DATA_DIR
-from mlops_fraudulent_transactions.config import AUTOENCODER_MODEL_PATH, FIGURES_DIR, MLP_MODEL_PATH, PROCESSED_DATA_DIR
-from mlops_fraudulent_transactions.modeling import AutoencoderModel, MLPModel  # <-- Importación modular limpia
+from mlops_fraudulent_transactions.config import (
+    AUTOENCODER_MODEL_PATH, 
+    FIGURES_DIR, 
+    MLP_MODEL_PATH, 
+    PROCESSED_DATA_DIR
+)
+
+from mlops_fraudulent_transactions.modeling import AutoencoderModel, MLPModel
 
 app = typer.Typer()
 
 THRESHOLD = 0.5
+
 
 class ModelEvaluator:
     """Computes classification metrics and PR curves for a set of models."""
@@ -61,7 +67,8 @@ class ModelEvaluator:
 
     def optimal_threshold(self, probs: np.ndarray) -> float:
         """Find the decision threshold that maximizes F1 on the evaluation set."""
-        precisions, recalls, thresholds = precision_recall_curve(self.y_test, probs)
+        precisions, recalls, thresholds = precision_recall_curve(
+            self.y_test, probs)
         f1_scores = 2 * (precisions * recalls) / (precisions + recalls + 1e-12)
         best_index = int(np.argmax(f1_scores))
         if best_index < len(thresholds):
@@ -78,7 +85,8 @@ class ModelEvaluator:
         for name, probs in predictions.items():
             precision, recall, _ = precision_recall_curve(self.y_test, probs)
             pr_auc = average_precision_score(self.y_test, probs)
-            plt.plot(recall, precision, label=f"{name} (PR-AUC = {pr_auc:.4f})")
+            plt.plot(recall, precision,
+                     label=f"{name} (PR-AUC = {pr_auc:.4f})")
         plt.xlabel("Recall")
         plt.ylabel("Precision")
         plt.title("Comparación de Curvas Precision-Recall (PR-AUC)")
@@ -119,7 +127,8 @@ def main(
     output_path: Path = PROCESSED_DATA_DIR / "predictions.csv",
     metrics_path: Path = Path("metrics/eval.json"),
 ) -> None:
-    x_test = pd.read_csv(features_path).to_numpy()  # <-- Renombrado a minúsculas
+    # <-- Renombrado a minúsculas
+    x_test = pd.read_csv(features_path).to_numpy()
     y_test = pd.read_csv(labels_path).to_numpy().ravel()
 
     predictions = run_inference(
@@ -130,10 +139,10 @@ def main(
     evaluator = ModelEvaluator(y_test)
     summary = evaluator.evaluate(predictions)
     summary.to_csv(output_path, index=False)
-    
+
     # 1. Guardar reporte visual PR-Curve
     evaluator.plot_precision_recall(
-        predictions, 
+        predictions,
         output_path=FIGURES_DIR / "pr_curve_comparison.png"
     )
 
@@ -142,8 +151,9 @@ def main(
     metrics_path.parent.mkdir(parents=True, exist_ok=True)
     with open(metrics_path, "w", encoding="utf-8") as f:
         json.dump(metrics_dict, f, indent=4)
-        
-    logger.success(f"Evaluación finalizada. Métricas guardadas en {metrics_path}")
+
+    logger.success(
+        f"Evaluación finalizada. Métricas guardadas en {metrics_path}")
     print(summary.to_string(index=False))
 
 

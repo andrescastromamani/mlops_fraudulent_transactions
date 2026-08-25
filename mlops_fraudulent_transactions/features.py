@@ -5,9 +5,9 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import RobustScaler
 import typer
-import yaml  # <-- Importar PyYAML
+import yaml
 
-from mlops_fraudulent_transactions.config import PROCESSED_DATA_DIR, RAW_DATA_DIR
+from mlops_fraudulent_transactions.config import PROCESSED_DATA_DIR
 
 app = typer.Typer()
 
@@ -23,8 +23,8 @@ class FeatureEngineer:
         self.random_state = random_state
         self._amount_scaler = RobustScaler()
         self._time_scaler = RobustScaler()
-        self.X_train: pd.DataFrame | None = None
-        self.X_test: pd.DataFrame | None = None
+        self.x_train: pd.DataFrame | None = None
+        self.x_test: pd.DataFrame | None = None
         self.y_train: pd.Series | None = None
         self.y_test: pd.Series | None = None
 
@@ -37,7 +37,7 @@ class FeatureEngineer:
         features = frame.drop(target, axis=1)
         labels = frame[target]
 
-        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
+        self.x_train, self.x_test, self.y_train, self.y_test = train_test_split(
             features,
             labels,
             test_size=self.test_size,
@@ -45,11 +45,11 @@ class FeatureEngineer:
             stratify=labels,
         )
 
-        self._amount_scaler.fit(self.X_train["Amount"].values.reshape(-1, 1))
-        self._time_scaler.fit(self.X_train["Time"].values.reshape(-1, 1))
-        self.X_train = self._scale(self.X_train)
-        self.X_test = self._scale(self.X_test)
-        logger.info(f"Train {self.X_train.shape} - Test {self.X_test.shape} after scaling")
+        self._amount_scaler.fit(self.x_train["Amount"].values.reshape(-1, 1))
+        self._time_scaler.fit(self.x_train["Time"].values.reshape(-1, 1))
+        self.x_train = self._scale(self.x_train)
+        self.x_test = self._scale(self.x_test)
+        logger.info(f"Train {self.x_train.shape} - Test {self.x_test.shape} after scaling")
 
     def class_weights(self) -> dict:
         """Compute per-class weights to counter the class imbalance."""
@@ -71,34 +71,38 @@ class FeatureEngineer:
         scaled["scaled_time"] = self._time_scaler.transform(scaled["Time"].values.reshape(-1, 1))
         return scaled.drop(["Time", "Amount"], axis=1)
 
+
 @app.command()
 def main(
-    input_path: Path = RAW_DATA_DIR / "creditcard.csv",
+    input_path: Path = PROCESSED_DATA_DIR / "dataset.csv",
     output_dir: Path = PROCESSED_DATA_DIR,
     params_path: Path = Path("params.yaml"),
 ) -> None:
-    # Leer params.yaml
-    with open(params_path, "r") as f:
+    # 1. Leer parámetros desde params.yaml
+    with open(params_path, "r", encoding="utf-8") as f:
         params = yaml.safe_load(f)
 
     test_size = params["prepare"]["split_ratio"]
     random_state = params["prepare"]["random_state"]
 
-    logger.info("Cargando dataset...")
+    # 2. Cargar datos preprocesados de dataset.py
+    logger.info(f"Cargando dataset desde {input_path}...")
     frame = pd.read_csv(input_path)
 
+    # 3. Aplicar separación y escalado de características
     engineer = FeatureEngineer(test_size=test_size, random_state=random_state)
     engineer.prepare(frame)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    # Guardar features y labels separados para DVC
-    engineer.X_train.to_csv(output_dir / "train_features.csv", index=False)
+    # 4. Guardar conjuntos divididos para DVC
+    engineer.x_train.to_csv(output_dir / "train_features.csv", index=False)
     engineer.y_train.to_csv(output_dir / "train_labels.csv", index=False)
-    engineer.X_test.to_csv(output_dir / "test_features.csv", index=False)
+    engineer.x_test.to_csv(output_dir / "test_features.csv", index=False)
     engineer.y_test.to_csv(output_dir / "test_labels.csv", index=False)
 
     logger.success(f"Features guardadas correctamente en {output_dir}")
+
 
 if __name__ == "__main__":
     app()

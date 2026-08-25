@@ -3,12 +3,13 @@ from pathlib import Path
 
 import numpy as np
 from loguru import logger
-from pandas import pd
+import pandas as pd
 import typer
 
 from mlops_fraudulent_transactions.config import (
-    MODELS_DIR,
-    PROCESSED_DATA_DIR
+    PROCESSED_DATA_DIR,
+    MLP_MODEL_PATH,
+    AUTOENCODER_MODEL_PATH,
 )
 from mlops_fraudulent_transactions.modeling import AutoencoderModel, MLPModel
 app = typer.Typer()
@@ -18,8 +19,8 @@ app = typer.Typer()
 def main(
     train_features_path: Path = PROCESSED_DATA_DIR / "train_features.csv",
     train_labels_path: Path = PROCESSED_DATA_DIR / "train_labels.csv",
-    mlp_path: Path = MODELS_DIR / "mlp_model.h5",
-    autoencoder_path: Path = MODELS_DIR / "autoencoder_model.h5",
+    mlp_path: Path = MLP_MODEL_PATH,
+    autoencoder_path: Path = AUTOENCODER_MODEL_PATH,
     params_path: Path = Path("params.yaml"),
 ) -> None:
     with open(params_path, "r") as f:
