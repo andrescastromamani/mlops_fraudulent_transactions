@@ -4,6 +4,12 @@
     <img src="https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter" />
 </a>
 
+## Author
+Bautista Mamani Gilmar
+Castro Mamani Andres
+Clemente Flores Cosmi
+Sanchez Salazar André
+
 MLOPS setup for a fraudulent transaction dataset
 
 ## Project Organization
@@ -62,4 +68,22 @@ MLOPS setup for a fraudulent transaction dataset
 ## Install Dependencies
 ```
 conda env update --file environment.yml --prune
+```
+
+## Excecute Mlflow ui
+```
+mlflow ui
+```
+
+## Excecute FastAPI
+```
+uvicorn mlops_fraudulent_transactions.api.api:app --reload --port 8000
+```
+## Deploy with Docker
+```
+sudo docker compose up --build -d
+```
+
+
+
 
