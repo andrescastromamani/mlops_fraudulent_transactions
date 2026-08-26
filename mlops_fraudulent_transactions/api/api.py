@@ -1,11 +1,15 @@
 from mlops_fraudulent_transactions.config import (
     AUTOENCODER_MODEL_PATH,
     MLP_MODEL_PATH,
+    AMOUNT_SCALER_PATH,
+    TIME_SCALER_PATH,
+    PROCESSED_DATA_DIR,
 )
 from contextlib import asynccontextmanager
 import sys
 from pathlib import Path
 
+import joblib
 import numpy as np
 import pandas as pd
 from fastapi import FastAPI, HTTPException
@@ -21,6 +25,9 @@ if str(PACKAGE_ROOT) not in sys.path:
 #Global variables to hold the models
 mlp_model: keras.Model | None = None
 autoencoder_model: keras.Model | None = None
+amount_scaler = None
+time_scaler = None
+autoencoder_threshold: float = 0.5
 MODEL_INFO = {
     "mlp": str(MLP_MODEL_PATH),
     "autoencoder": str(AUTOENCODER_MODEL_PATH),
@@ -29,7 +36,7 @@ MODEL_INFO = {
 #Lifecycle event to load models
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global mlp_model, autoencoder_model
+    global mlp_model, autoencoder_model, amount_scaler, time_scaler, autoencoder_threshold
     try:
         if Path(MLP_MODEL_PATH).exists():
             mlp_model = keras.models.load_model(MLP_MODEL_PATH)
@@ -51,11 +58,41 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[FastAPI ERROR] No se pudo cargar Autoencoder: {e}")
 
+    # Cargar scalers
+    try:
+        if Path(AMOUNT_SCALER_PATH).exists():
+            amount_scaler = joblib.load(AMOUNT_SCALER_PATH)
+            print(f"[FastAPI] Amount scaler cargado desde {AMOUNT_SCALER_PATH}")
+        if Path(TIME_SCALER_PATH).exists():
+            time_scaler = joblib.load(TIME_SCALER_PATH)
+            print(f"[FastAPI] Time scaler cargado desde {TIME_SCALER_PATH}")
+    except Exception as e:
+        print(f"[FastAPI ERROR] No se pudieron cargar scalers: {e}")
+
+    # Calcular threshold del Autoencoder
+    try:
+        train_features_path = PROCESSED_DATA_DIR / "train_features.csv"
+        train_labels_path = PROCESSED_DATA_DIR / "train_labels.csv"
+        if train_features_path.exists() and train_labels_path.exists() and autoencoder_model is not None:
+            x_train = pd.read_csv(train_features_path).to_numpy()
+            y_train = pd.read_csv(train_labels_path).to_numpy().ravel()
+            x_train_normal = x_train[y_train == 0]
+
+            from mlops_fraudulent_transactions.modeling import AutoencoderModel
+            autoencoder_wrapper = AutoencoderModel(x_train.shape[1])
+            autoencoder_wrapper.model = autoencoder_model
+            autoencoder_threshold = autoencoder_wrapper.anomaly_threshold(x_train_normal)
+            print(f"[FastAPI] Autoencoder threshold calculado: {autoencoder_threshold:.4f}")
+    except Exception as e:
+        print(f"[FastAPI ERROR] No se pudo calcular threshold: {e}")
+
     yield
 
     # Clean up models on shutdown
     mlp_model = None
     autoencoder_model = None
+    amount_scaler = None
+    time_scaler = None
 
 
 app = FastAPI(
@@ -140,7 +177,20 @@ def predict(payload: PredictionRequest):
         # Convert received data to a Pandas DataFrame
         input_data = pd.DataFrame(
             [item.model_dump(by_alias=True) for item in payload.data])
-        X = input_data.to_numpy()
+
+        # Escalar Time y Amount
+        if amount_scaler is not None and time_scaler is not None:
+            input_data["scaled_amount"] = amount_scaler.transform(
+                input_data["Amount"].values.reshape(-1, 1))
+            input_data["scaled_time"] = time_scaler.transform(
+                input_data["Time"].values.reshape(-1, 1))
+            # Seleccionar columnas en orden: V1-V28, scaled_amount, scaled_time
+            feature_cols = [f"V{i}" for i in range(1, 29)] + ["scaled_amount", "scaled_time"]
+            X = input_data[feature_cols].to_numpy()
+        else:
+            # Fallback: usar datos sin escalar (no recomendado)
+            feature_cols = ["Time"] + [f"V{i}" for i in range(1, 29)] + ["Amount"]
+            X = input_data[feature_cols].to_numpy()
 
         results = []
 
@@ -160,6 +210,7 @@ def predict(payload: PredictionRequest):
             if reconstructed is not None:
                 mse = float(np.mean(np.square(X[i] - reconstructed[i])))
                 result["autoencoder_reconstruction_error"] = round(mse, 6)
+                result["autoencoder_prediction"] = "Fraude" if mse > autoencoder_threshold else "Legítimo"
 
             results.append(result)
 

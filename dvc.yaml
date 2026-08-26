@@ -55,6 +55,8 @@ stages:
       - mlops_fraudulent_transactions/modeling/predict.py
       - data/processed/test_features.csv
       - data/processed/test_labels.csv
+      - data/processed/train_features.csv
+      - data/processed/train_labels.csv
       - models/model_mlp.keras
       - models/model_autoencoder.keras
     outs:

@@ -9,24 +9,24 @@ stages:
       size: 150828752
     - path: mlops_fraudulent_transactions/dataset.py
       hash: md5
-      md5: 69fd35c500cb869106ddd4cac0440214
-      size: 1491
+      md5: 72a1b625cee201a1691e27ac103644bb
+      size: 1540
     outs:
     - path: data/processed/dataset.csv
       hash: md5
-      md5: dc31d6eb183be31c3ada5ab12115bdd2
-      size: 150817597
+      md5: e5986c63f371b335fceb7778f4ca65c9
+      size: 151102405
   feature_engineering:
     cmd: python mlops_fraudulent_transactions/features.py
     deps:
     - path: data/processed/dataset.csv
       hash: md5
-      md5: dc31d6eb183be31c3ada5ab12115bdd2
-      size: 150817597
+      md5: e5986c63f371b335fceb7778f4ca65c9
+      size: 151102405
     - path: mlops_fraudulent_transactions/features.py
       hash: md5
-      md5: 149d27df77a8b9e1d613814f777d36ff
-      size: 3861
+      md5: 32f4794beb88a1a5b6002d51992119c3
+      size: 4376
     params:
       params.yaml:
         prepare.random_state: 42
@@ -34,75 +34,75 @@ stages:
     outs:
     - path: data/processed/test_features.csv
       hash: md5
-      md5: e6f267b02889fefcbba187ad248b9558
-      size: 31512247
+      md5: ab91894c6a7f579312792dbacd82308e
+      size: 31569210
     - path: data/processed/test_labels.csv
       hash: md5
-      md5: 2da48f5787220fce144c581a726064bb
-      size: 113930
+      md5: 139122f285f3641a4e93d0993fc00bc0
+      size: 170893
     - path: data/processed/train_features.csv
       hash: md5
-      md5: 957a4dee0dc369e56cb6157dbc9fa80f
-      size: 126050740
+      md5: 3846ad47ef9222bf638ea521385a626d
+      size: 126278586
     - path: data/processed/train_labels.csv
       hash: md5
-      md5: 11617ddb83e0f874d596e0a9435cb4b5
-      size: 455696
+      md5: 9bd76a276f1670db9e12935b9548b15e
+      size: 683542
   eda_plots:
     cmd: python mlops_fraudulent_transactions/plots.py
     deps:
     - path: data/processed/dataset.csv
       hash: md5
-      md5: dc31d6eb183be31c3ada5ab12115bdd2
-      size: 150817597
+      md5: e5986c63f371b335fceb7778f4ca65c9
+      size: 151102405
     - path: mlops_fraudulent_transactions/plots.py
       hash: md5
-      md5: 3b9204770b10ffcd5a4c26f0a69d04bf
-      size: 3325
+      md5: 44e6b70d1e18256c864a11322ca8968d
+      size: 3424
     outs:
     - path: reports/figures/amounts_by_class.png
       hash: md5
-      md5: ac305c08c03c1f985e278ad5df1d4809
-      size: 37839
+      md5: ee4fb66907ba6a4a082a6784f71ac433
+      size: 42331
     - path: reports/figures/class_distribution.png
       hash: md5
-      md5: 98f4f1b80af33367429f7eb1de3b49a8
-      size: 14043
+      md5: c25ea63e0e7977feb60a2a038fa4a029
+      size: 16058
     - path: reports/figures/correlation_heatmap.png
       hash: md5
-      md5: 27d53720494a5b04e3c541e20cc584cb
-      size: 39930
+      md5: d2fecdf18cdfc248e3b13fdfb8b4d9c7
+      size: 43788
     - path: reports/figures/time_distribution.png
       hash: md5
-      md5: d45483a54d83b99f580bd921ae691268
-      size: 32802
+      md5: 8ef8ed32c112478b1906e844a9a22e82
+      size: 37723
   train:
     cmd: python mlops_fraudulent_transactions/modeling/train.py
     deps:
     - path: data/processed/train_features.csv
       hash: md5
-      md5: 957a4dee0dc369e56cb6157dbc9fa80f
-      size: 126050740
+      md5: 3846ad47ef9222bf638ea521385a626d
+      size: 126278586
     - path: data/processed/train_labels.csv
       hash: md5
-      md5: 11617ddb83e0f874d596e0a9435cb4b5
-      size: 455696
+      md5: 9bd76a276f1670db9e12935b9548b15e
+      size: 683542
     - path: mlops_fraudulent_transactions/modeling/autoencoder.py
       hash: md5
-      md5: f8940b8bc8f21e7e4192e4cd530bf362
-      size: 2929
+      md5: 19b07ac2be086f36010956723646acca
+      size: 3004
     - path: mlops_fraudulent_transactions/modeling/base.py
       hash: md5
-      md5: 5d692ae377e2d03298a7987a628cc3b0
-      size: 1439
+      md5: e944c18d962b20b2b2720397df11cf0b
+      size: 1480
     - path: mlops_fraudulent_transactions/modeling/mlp.py
       hash: md5
-      md5: ca4fd1e2f8dd29781f3d198eb1589f9f
-      size: 2644
+      md5: ccf4d47de9b1b1de7abd8e66594852c1
+      size: 2828
     - path: mlops_fraudulent_transactions/modeling/train.py
       hash: md5
-      md5: f87d3f2f78c0f0e8017820ffb428cac3
-      size: 3086
+      md5: 4211c65beff7e9f0f6be769845179672
+      size: 3033
     params:
       params.yaml:
         train.batch_size: 2048
@@ -111,12 +111,12 @@ stages:
     outs:
     - path: models/model_autoencoder.keras
       hash: md5
-      md5: 8299b6464f622d1d77e3282e3018982f
-      size: 54970
+      md5: 4723cc79b3198b8354decb4f05836f0f
+      size: 48265
     - path: models/model_mlp.keras
       hash: md5
-      md5: 0d8ea0aaaa7841f6283a69837a1991ee
-      size: 94122
+      md5: de43ccb1cba996f862932e0a27af2714
+      size: 227405
   evaluate:
     cmd: python mlops_fraudulent_transactions/modeling/predict.py
     deps:

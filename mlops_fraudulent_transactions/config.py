@@ -21,6 +21,9 @@ MODELS_DIR = PROJ_ROOT / "models"
 MLP_MODEL_PATH = MODELS_DIR / "model_mlp.keras"
 AUTOENCODER_MODEL_PATH = MODELS_DIR / "model_autoencoder.keras"
 
+AMOUNT_SCALER_PATH = PROCESSED_DATA_DIR / "amount_scaler.pkl"
+TIME_SCALER_PATH = PROCESSED_DATA_DIR / "time_scaler.pkl"
+
 REPORTS_DIR = PROJ_ROOT / "reports"
 FIGURES_DIR = REPORTS_DIR / "figures"
 
