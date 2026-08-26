@@ -1,0 +1,9 @@
+services:
+  fraud_detection_api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app

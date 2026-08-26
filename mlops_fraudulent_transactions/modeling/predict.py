@@ -2,7 +2,6 @@ import json
 from pathlib import Path
 import mlflow
 
-
 from loguru import logger
 import typer
 
@@ -49,7 +48,11 @@ class ModelEvaluator:
         """Evaluate each prediction and store a summary row per model."""
         self.results = []
         for name, probs in predictions.items():
-            threshold = (thresholds or {}).get(name, THRESHOLD)
+            # Si no se provee un umbral específico, calcula el óptimo vía F1-Score
+            threshold = (thresholds or {}).get(name)
+            if threshold is None:
+                threshold = self.optimal_threshold(probs)
+
             preds = (probs >= threshold).astype(int)
             self.results.append(
                 {
@@ -70,12 +73,13 @@ class ModelEvaluator:
     def optimal_threshold(self, probs: np.ndarray) -> float:
         """Find the decision threshold that maximizes F1 on the evaluation set."""
         precisions, recalls, thresholds = precision_recall_curve(
-            self.y_test, probs)
+            self.y_test, probs
+        )
         f1_scores = 2 * (precisions * recalls) / (precisions + recalls + 1e-12)
         best_index = int(np.argmax(f1_scores))
         if best_index < len(thresholds):
             return float(thresholds[best_index])
-        return 0.0
+        return THRESHOLD
 
     def plot_precision_recall(
         self,
@@ -101,7 +105,7 @@ class ModelEvaluator:
 
 
 def run_inference(
-    x_test: np.ndarray,  # <-- Cumple con la regla ^[_a-z]
+    x_test: np.ndarray,
     mlp_path: Path = MLP_MODEL_PATH,
     autoencoder_path: Path = AUTOENCODER_MODEL_PATH,
 ) -> dict[str, np.ndarray]:
@@ -129,7 +133,6 @@ def main(
     output_path: Path = PROCESSED_DATA_DIR / "predictions.csv",
     metrics_path: Path = Path("metrics/eval.json"),
 ) -> None:
-    # <-- Renombrado a minúsculas
     x_test = pd.read_csv(features_path).to_numpy()
     y_test = pd.read_csv(labels_path).to_numpy().ravel()
 
@@ -139,16 +142,24 @@ def main(
         autoencoder_path=autoencoder_model_path,
     )
     evaluator = ModelEvaluator(y_test)
-    summary = evaluator.evaluate(predictions)
+    
+    # 1. Calcular umbrales óptimos dinámicos para cada modelo
+    optimal_thresholds = {
+        name: evaluator.optimal_threshold(probs)
+        for name, probs in predictions.items()
+    }
+    
+    # 2. Evaluar usando los umbrales adaptativos
+    summary = evaluator.evaluate(predictions, thresholds=optimal_thresholds)
     summary.to_csv(output_path, index=False)
 
-    # 1. Guardar reporte visual PR-Curve
+    # Guardar reporte visual PR-Curve
     evaluator.plot_precision_recall(
         predictions,
         output_path=FIGURES_DIR / "pr_curve_comparison.png"
     )
 
-    # 2. Exportar métricas estructuradas para DVC
+    # Exportar métricas estructuradas para DVC
     metrics_dict = summary.set_index("Modelo").to_dict(orient="index")
     metrics_path.parent.mkdir(parents=True, exist_ok=True)
     with open(metrics_path, "w", encoding="utf-8") as f:
@@ -160,13 +171,12 @@ def main(
 
     # MLflow
     with mlflow.start_run(run_name="Evaluation_Results", nested=True):
-        # Registrar métricas numéricas obtenidas del resumen
         for _, row in summary.iterrows():
             model_name = row["Modelo"]
             mlflow.log_metric(f"{model_name}_f1_score", row["F1-Score"])
             mlflow.log_metric(f"{model_name}_pr_auc", row["PR-AUC"])
+            mlflow.log_metric(f"{model_name}_threshold", row["Threshold"])
 
-        # Registrar la imagen de curvas PR como artefacto
         pr_curve_file = FIGURES_DIR / "pr_curve_comparison.png"
         if pr_curve_file.exists():
             mlflow.log_artifact(str(pr_curve_file), artifact_path="plots")
