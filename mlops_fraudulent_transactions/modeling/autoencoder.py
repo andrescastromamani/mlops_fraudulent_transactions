@@ -60,12 +60,10 @@ class AutoencoderModel(BaseModel):
         return self.history
 
     def reconstruction_error(self, X: np.ndarray) -> np.ndarray:
-        """Return the normalized MSE reconstruction error as anomaly score."""
+        """Return the MSE reconstruction error as anomaly score."""
         reconstructed = self.predict(X)
         mse = np.mean(np.power(X - reconstructed, 2), axis=1)
-        mse_min = mse.min()
-        mse_max = mse.max()
-        return (mse - mse_min) / (mse_max - mse_min)
+        return mse
 
     def anomaly_threshold(
         self,
