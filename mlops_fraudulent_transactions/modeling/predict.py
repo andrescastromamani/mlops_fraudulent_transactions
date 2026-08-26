@@ -102,6 +102,7 @@ class ModelEvaluator:
 
 def run_inference(
     x_test: np.ndarray,  # <-- Cumple con la regla ^[_a-z]
+    x_train_normal: np.ndarray,
     mlp_path: Path = MLP_MODEL_PATH,
     autoencoder_path: Path = AUTOENCODER_MODEL_PATH,
 ) -> dict[str, np.ndarray]:
@@ -114,16 +115,22 @@ def run_inference(
     autoencoder_wrapper = AutoencoderModel(x_test.shape[1])
     autoencoder_wrapper.model = autoencoder_model
 
+    # Calcular threshold óptimo para Autoencoder usando transacciones normales
+    autoencoder_threshold = autoencoder_wrapper.anomaly_threshold(x_train_normal)
+    logger.info(f"Autoencoder threshold calculado: {autoencoder_threshold:.4f}")
+
     return {
         "MLP_Supervisado": mlp_wrapper.predict(x_test).ravel(),
         "Autoencoder": autoencoder_wrapper.reconstruction_error(x_test),
-    }
+    }, autoencoder_threshold
 
 
 @app.command()
 def main(
     features_path: Path = PROCESSED_DATA_DIR / "test_features.csv",
     labels_path: Path = PROCESSED_DATA_DIR / "test_labels.csv",
+    train_features_path: Path = PROCESSED_DATA_DIR / "train_features.csv",
+    train_labels_path: Path = PROCESSED_DATA_DIR / "train_labels.csv",
     mlp_model_path: Path = MLP_MODEL_PATH,
     autoencoder_model_path: Path = AUTOENCODER_MODEL_PATH,
     output_path: Path = PROCESSED_DATA_DIR / "predictions.csv",
@@ -133,13 +140,19 @@ def main(
     x_test = pd.read_csv(features_path).to_numpy()
     y_test = pd.read_csv(labels_path).to_numpy().ravel()
 
-    predictions = run_inference(
+    # Cargar datos de entrenamiento para calcular threshold del Autoencoder
+    x_train = pd.read_csv(train_features_path).to_numpy()
+    y_train = pd.read_csv(train_labels_path).to_numpy().ravel()
+    x_train_normal = x_train[y_train == 0]
+
+    predictions, autoencoder_threshold = run_inference(
         x_test,
+        x_train_normal=x_train_normal,
         mlp_path=mlp_model_path,
         autoencoder_path=autoencoder_model_path,
     )
     evaluator = ModelEvaluator(y_test)
-    summary = evaluator.evaluate(predictions)
+    summary = evaluator.evaluate(predictions, thresholds={"Autoencoder": autoencoder_threshold})
     summary.to_csv(output_path, index=False)
 
     # 1. Guardar reporte visual PR-Curve

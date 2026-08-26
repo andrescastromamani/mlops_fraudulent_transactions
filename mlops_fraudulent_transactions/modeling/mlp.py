@@ -26,11 +26,13 @@ class MLPModel(BaseModel):
         self.model = keras.Sequential(
             [
                 layers.Input(shape=(self.input_dim,)),
+                layers.Dense(128, activation="relu"),
+                layers.BatchNormalization(),
+                layers.Dropout(self.dropout_rate),
                 layers.Dense(64, activation="relu"),
                 layers.BatchNormalization(),
                 layers.Dropout(self.dropout_rate),
                 layers.Dense(32, activation="relu"),
-                layers.BatchNormalization(),
                 layers.Dropout(self.dropout_rate),
                 layers.Dense(1, activation="sigmoid"),
             ],

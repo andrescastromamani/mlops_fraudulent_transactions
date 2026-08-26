@@ -12,15 +12,15 @@ from mlops_fraudulent_transactions.modeling.base import BaseModel
 class AutoencoderModel(BaseModel):
     """Autoencoder that reconstructs normal transactions to flag anomalies."""
 
-    def __init__(self, input_dim: int, encoding_dim: int = 14) -> None:
+    def __init__(self, input_dim: int, encoding_dim: int = 8) -> None:
         super().__init__(input_dim)
         self.encoding_dim = encoding_dim
 
     def build(self) -> AutoencoderModel:
         input_layer = layers.Input(shape=(self.input_dim,))
-        encoded = layers.Dense(20, activation="tanh")(input_layer)
+        encoded = layers.Dense(16, activation="relu")(input_layer)
         encoded = layers.Dense(self.encoding_dim, activation="relu")(encoded)
-        decoded = layers.Dense(20, activation="tanh")(encoded)
+        decoded = layers.Dense(16, activation="relu")(encoded)
         decoded = layers.Dense(self.input_dim, activation="linear")(decoded)
 
         self.model = keras.Model(inputs=input_layer, outputs=decoded, name="Autoencoder_Anomalias")

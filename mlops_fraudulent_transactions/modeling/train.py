@@ -61,17 +61,15 @@ def main(
             1: (1 / pos_count) * (n_samples / 2.0),
         }
 
-        mlp.model.fit(
+        mlp.train(
             X_train,
             y_train,
-            validation_split=0.15,
+            checkpoint_path=mlp_path,
             epochs=epochs,
             batch_size=batch_size,
+            validation_split=0.15,
             class_weight=class_weight,
-            callbacks=[keras_callback],
-            verbose=1,
         )
-        mlp.save(mlp_path)
         mlflow.keras.log_model(mlp.model, artifact_path="mlp_model")
 
         # --- Autoencoder ---
@@ -80,16 +78,13 @@ def main(
 
         autoencoder = AutoencoderModel(input_dim=input_dim)
         autoencoder.build()
-        autoencoder.model.fit(
+        autoencoder.train(
             X_train_normal,
-            X_train_normal,
-            validation_split=0.15,
+            checkpoint_path=autoencoder_path,
             epochs=epochs,
             batch_size=batch_size,
-            callbacks=[keras_callback],
-            verbose=1,
+            validation_split=0.15,
         )
-        autoencoder.save(autoencoder_path)
         mlflow.keras.log_model(
             autoencoder.model, artifact_path="autoencoder_model")
 

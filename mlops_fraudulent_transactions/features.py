@@ -2,6 +2,7 @@ from pathlib import Path
 from loguru import logger
 import numpy as np
 import pandas as pd
+import joblib
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import RobustScaler
 import typer
@@ -50,6 +51,12 @@ class FeatureEngineer:
         self.x_train = self._scale(self.x_train)
         self.x_test = self._scale(self.x_test)
         logger.info(f"Train {self.x_train.shape} - Test {self.x_test.shape} after scaling")
+
+    def save_scalers(self, output_dir: Path) -> None:
+        """Save fitted scalers for inference."""
+        joblib.dump(self._amount_scaler, output_dir / "amount_scaler.pkl")
+        joblib.dump(self._time_scaler, output_dir / "time_scaler.pkl")
+        logger.info(f"Scalers saved to {output_dir}")
 
     def class_weights(self) -> dict:
         """Compute per-class weights to counter the class imbalance."""
@@ -100,6 +107,9 @@ def main(
     engineer.y_train.to_csv(output_dir / "train_labels.csv", index=False)
     engineer.x_test.to_csv(output_dir / "test_features.csv", index=False)
     engineer.y_test.to_csv(output_dir / "test_labels.csv", index=False)
+
+    # 5. Guardar scalers para inferencia
+    engineer.save_scalers(output_dir)
 
     logger.success(f"Features guardadas correctamente en {output_dir}")
 
