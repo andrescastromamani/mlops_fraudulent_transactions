@@ -8,6 +8,7 @@
 Bautista Mamani Gilmar
 Castro Mamani Andres
 Clemente Flores Cosmi
+Ramirez Sejas Paola Andrea
 Sanchez Salazar André
 
 MLOPS setup for a fraudulent transaction dataset

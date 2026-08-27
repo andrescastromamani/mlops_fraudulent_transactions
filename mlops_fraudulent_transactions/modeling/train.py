@@ -1,8 +1,8 @@
-import yaml
 from pathlib import Path
 
-import numpy as np
 from loguru import logger
+import yaml
+import numpy as np
 import pandas as pd
 import mlflow
 import mlflow.keras
@@ -25,7 +25,7 @@ def main(
     autoencoder_path: Path = AUTOENCODER_MODEL_PATH,
     params_path: Path = Path("params.yaml"),
 ) -> None:
-    # 1. Definir el experimento de MLflow
+    # Define the MLflow experiment for tracking runs
     mlflow.set_experiment("Fraud_Detection")
 
     with open(params_path, "r", encoding="utf-8") as f:
@@ -35,22 +35,22 @@ def main(
     batch_size = params["train"]["batch_size"]
     learning_rate = params["train"]["learning_rate"]
 
-    logger.info(f"Cargando datos desde {train_features_path}...")
+    logger.info(f"Loading data from {train_features_path}...")
     X_train = pd.read_csv(train_features_path).to_numpy()
     y_train = pd.read_csv(train_labels_path).to_numpy().ravel()
     input_dim = X_train.shape[1]
 
-    # 2. Iniciar el registro de la corrida (Run)
+    # Start an MLflow run to log parameters, metrics, and models
     with mlflow.start_run(run_name="Train_MLP_and_Autoencoder"):
-        # Registrar parámetros de params.yaml
+        # Register parameters from params.yaml
         mlflow.log_params(params["prepare"])
         mlflow.log_params(params["train"])
 
-        # Callback automático para métricas por epoch en Keras
+        # Callback automatic for metrics per epoch in Keras
         keras_callback = mlflow.keras.MLflowCallback()
 
         # --- MLP ---
-        logger.info("Entrenando MLP...")
+        logger.info("Training MLP...")
         mlp = MLPModel(input_dim=input_dim, learning_rate=learning_rate)
         mlp.build()
 
@@ -73,13 +73,13 @@ def main(
         mlflow.keras.log_model(mlp.model, artifact_path="mlp_model")
 
         # --- Autoencoder ---
-        logger.info("Entrenando Autoencoder...")
-        X_train_normal = X_train[y_train == 0]
+        logger.info("Training Autoencoder...")
+        x_train_normal = X_train[y_train == 0]
 
         autoencoder = AutoencoderModel(input_dim=input_dim)
         autoencoder.build()
         autoencoder.train(
-            X_train_normal,
+            x_train_normal,
             checkpoint_path=autoencoder_path,
             epochs=epochs,
             batch_size=batch_size,
@@ -88,7 +88,7 @@ def main(
         mlflow.keras.log_model(
             autoencoder.model, artifact_path="autoencoder_model")
 
-        logger.success("Entrenamiento finalizado y registrado en MLflow")
+        logger.success("Training finished. Models saved to disk and logged to MLflow.")
 
 
 if __name__ == "__main__":

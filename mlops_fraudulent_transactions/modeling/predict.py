@@ -1,12 +1,10 @@
 import json
 from pathlib import Path
-import mlflow
+
 
 from loguru import logger
-import typer
-
-from tensorflow import keras
 import matplotlib.pyplot as plt
+import mlflow
 import numpy as np
 import pandas as pd
 from sklearn.metrics import (
@@ -18,6 +16,8 @@ from sklearn.metrics import (
     recall_score,
     roc_auc_score,
 )
+from tensorflow import keras
+import typer
 
 from mlops_fraudulent_transactions.config import (
     AUTOENCODER_MODEL_PATH,
@@ -48,7 +48,6 @@ class ModelEvaluator:
         """Evaluate each prediction and store a summary row per model."""
         self.results = []
         for name, probs in predictions.items():
-            # Si no se provee un umbral específico, calcula el óptimo vía F1-Score
             threshold = (thresholds or {}).get(name)
             if threshold is None:
                 threshold = self.optimal_threshold(probs)
@@ -106,6 +105,7 @@ class ModelEvaluator:
 
 def run_inference(
     x_test: np.ndarray,
+    x_train_normal: np.ndarray,
     mlp_path: Path = MLP_MODEL_PATH,
     autoencoder_path: Path = AUTOENCODER_MODEL_PATH,
 ) -> dict[str, np.ndarray]:
@@ -118,9 +118,11 @@ def run_inference(
     autoencoder_wrapper = AutoencoderModel(x_test.shape[1])
     autoencoder_wrapper.model = autoencoder_model
 
-    # Calcular threshold óptimo para Autoencoder usando transacciones normales
-    autoencoder_threshold = autoencoder_wrapper.anomaly_threshold(x_train_normal)
-    logger.info(f"Autoencoder threshold calculado: {autoencoder_threshold:.4f}")
+    # Calculate the anomaly threshold for the Autoencoder based on normal training data
+    autoencoder_threshold = autoencoder_wrapper.anomaly_threshold(
+        x_train_normal)
+    logger.info(
+        f"Autoencoder threshold calculated: {autoencoder_threshold:.4f}")
 
     return {
         "MLP_Supervisado": mlp_wrapper.predict(x_test).ravel(),
@@ -142,7 +144,7 @@ def main(
     x_test = pd.read_csv(features_path).to_numpy()
     y_test = pd.read_csv(labels_path).to_numpy().ravel()
 
-    # Cargar datos de entrenamiento para calcular threshold del Autoencoder
+    # Load training data to calculate Autoencoder threshold
     x_train = pd.read_csv(train_features_path).to_numpy()
     y_train = pd.read_csv(train_labels_path).to_numpy().ravel()
     x_train_normal = x_train[y_train == 0]
@@ -154,24 +156,24 @@ def main(
         autoencoder_path=autoencoder_model_path,
     )
     evaluator = ModelEvaluator(y_test)
-    
-    # 1. Calcular umbrales óptimos dinámicos para cada modelo
+
+    # Calculate optimal thresholds for each model
     optimal_thresholds = {
         name: evaluator.optimal_threshold(probs)
         for name, probs in predictions.items()
     }
-    
-    # 2. Evaluar usando los umbrales adaptativos
+
+    # Evaluate each model and save the summary to a CSV file
     summary = evaluator.evaluate(predictions, thresholds=optimal_thresholds)
     summary.to_csv(output_path, index=False)
 
-    # Guardar reporte visual PR-Curve
+    # Save the PR curve comparison plot to a file
     evaluator.plot_precision_recall(
         predictions,
         output_path=FIGURES_DIR / "pr_curve_comparison.png"
     )
 
-    # Exportar métricas estructuradas para DVC
+    # Export metrics as a JSON file for DVC
     metrics_dict = summary.set_index("Modelo").to_dict(orient="index")
     metrics_path.parent.mkdir(parents=True, exist_ok=True)
     with open(metrics_path, "w", encoding="utf-8") as f:

@@ -1,4 +1,5 @@
 from pathlib import Path
+
 from loguru import logger
 import numpy as np
 import pandas as pd
@@ -38,7 +39,12 @@ class FeatureEngineer:
         features = frame.drop(target, axis=1)
         labels = frame[target]
 
-        self.x_train, self.x_test, self.y_train, self.y_test = train_test_split(
+        (
+            self.x_train, 
+            self.x_test, 
+            self.y_train, 
+            self.y_test
+        ) = train_test_split(
             features,
             labels,
             test_size=self.test_size,
@@ -85,33 +91,33 @@ def main(
     output_dir: Path = PROCESSED_DATA_DIR,
     params_path: Path = Path("params.yaml"),
 ) -> None:
-    # 1. Leer parámetros desde params.yaml
+    # Load parameters from params.yaml
     with open(params_path, "r", encoding="utf-8") as f:
         params = yaml.safe_load(f)
 
     test_size = params["prepare"]["split_ratio"]
     random_state = params["prepare"]["random_state"]
 
-    # 2. Cargar datos preprocesados de dataset.py
-    logger.info(f"Cargando dataset desde {input_path}...")
+    # Load the preprocessed dataset from dataset.py
+    logger.info(f"Loading dataset from {input_path}...")
     frame = pd.read_csv(input_path)
 
-    # 3. Aplicar separación y escalado de características
+    # Apply feature engineering: split into train/test and scale Time/Amount
     engineer = FeatureEngineer(test_size=test_size, random_state=random_state)
     engineer.prepare(frame)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    # 4. Guardar conjuntos divididos para DVC
+    # Save the split datasets to CSV files for DVC tracking
     engineer.x_train.to_csv(output_dir / "train_features.csv", index=False)
     engineer.y_train.to_csv(output_dir / "train_labels.csv", index=False)
     engineer.x_test.to_csv(output_dir / "test_features.csv", index=False)
     engineer.y_test.to_csv(output_dir / "test_labels.csv", index=False)
 
-    # 5. Guardar scalers para inferencia
+    # Save the fitted scalers for Time and Amount to disk for later use during inference
     engineer.save_scalers(output_dir)
 
-    logger.success(f"Features guardadas correctamente en {output_dir}")
+    logger.success(f"Features saved to {output_dir}")
 
 
 if __name__ == "__main__":
