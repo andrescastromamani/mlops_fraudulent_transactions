@@ -1,99 +1,81 @@
 from pathlib import Path
-
-from loguru import logger
 import matplotlib.pyplot as plt
-import typer
-import seaborn as sns
 import pandas as pd
+import seaborn as sns
+from loguru import logger
+
+from mlops_fraudulent_transactions.config import PROJ_ROOT
+
+DATA_PROCESSED_PATH = PROJ_ROOT / "data" / "processed" / "dataset.csv"
+FIGURES_DIR = PROJ_ROOT / "reports" / "figures"
 
 
-from mlops_fraudulent_transactions.config import (
-    FIGURES_DIR,
-    PROCESSED_DATA_DIR
-)
-from mlops_fraudulent_transactions.dataset import CreditCardDataset
+def main():
+    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
-app = typer.Typer()
+    if not DATA_PROCESSED_PATH.exists():
+        logger.error(f"No se encontró el archivo en {DATA_PROCESSED_PATH}")
+        return
 
+    logger.info("Cargando dataset para generar gráficos...")
+    df = pd.read_csv(DATA_PROCESSED_PATH)
 
-class ExploratoryPlots:
-    """Generates the EDA visualizations for the transactions dataset."""
+    # 1. Gráfico de distribución de clases
+    plt.figure(figsize=(6, 4))
+    if "Class" in df.columns:
+        df["Class"].value_counts().plot(kind="bar", color=["navy", "crimson"])
+        plt.title("Distribución de Transacciones (0: Normal, 1: Fraude)")
+        plt.xlabel("Clase")
+        plt.ylabel("Cantidad")
+        plt.xticks(rotation=0)
 
-    def __init__(self, output_dir: Path = FIGURES_DIR) -> None:
-        self.output_dir = output_dir
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+    class_dist_path = FIGURES_DIR / "class_distribution.png"
+    plt.tight_layout()
+    plt.savefig(class_dist_path)
+    plt.close()
+    logger.success(f"Gráfico guardado en: {class_dist_path}")
 
-    def class_distribution(self, frame: pd.DataFrame) -> None:
-        plt.figure(figsize=(7, 4))
-        sns.countplot(
-            x="Class",
-            data=frame,
-            hue="Class",
-            palette=["#67db67", "#d9534f"],
-            legend=False,
-        )
+    # 2. Mapa de calor de correlación
+    plt.figure(figsize=(10, 8))
+    corr = df.corr()
+    sns.heatmap(corr, cmap="coolwarm", annot=False, fmt=".2f")
+    plt.title("Mapa de Calor de Correlación de Características")
+
+    corr_heatmap_path = FIGURES_DIR / "correlation_heatmap.png"
+    plt.tight_layout()
+    plt.savefig(corr_heatmap_path)
+    plt.close()
+    logger.success(f"Gráfico guardado en: {corr_heatmap_path}")
+
+    # 3. Distribución de montos por clase
+    plt.figure(figsize=(8, 5))
+    if "Amount" in df.columns and "Class" in df.columns:
+        sns.boxplot(x="Class", y="Amount", data=df, hue="Class", palette=["navy", "crimson"], legend=False)
         plt.yscale("log")
-        plt.title("Distribución de Clases")
-        plt.xlabel("Clase (0: No Fraude, 1: Fraude)")
-        plt.ylabel("Cantidad de Transacciones")
-        self._save("class_distribution.png")
+        plt.title("Distribución de Montos por Clase (Escala Logarítmica)")
+        plt.xlabel("Clase (0: Normal, 1: Fraude)")
+        plt.ylabel("Monto (Log)")
 
-    def correlation_heatmap(self, frame: pd.DataFrame) -> None:
-        plt.figure(figsize=(10, 10))
-        sns.heatmap(frame.corr(), square=True)
-        plt.title("Matriz de Correlación")
-        self._save("correlation_heatmap.png")
+    amounts_path = FIGURES_DIR / "amounts_by_class.png"
+    plt.tight_layout()
+    plt.savefig(amounts_path)
+    plt.close()
+    logger.success(f"Gráfico guardado en: {amounts_path}")
 
-    def amounts_by_class(self, frame: pd.DataFrame) -> None:
-        fraud_frame = frame[frame["Class"] == 1]
-        _, axes = plt.subplots(1, 2, figsize=(14, 5))
-        sns.ecdfplot(
-            data=frame[frame["Amount"] < 2200],
-            x="Amount",
-            hue="Class",
-            ax=axes[0],
-        )
-        sns.boxplot(data=fraud_frame, y="Amount", ax=axes[1])
-        axes[0].set_title("Distribución del Monto por Clase")
-        axes[1].set_title("Monto de Transacciones Fraudulentas")
-        plt.tight_layout()
-        self._save("amounts_by_class.png")
+    # 4. Distribución de transacciones en el tiempo (Último gráfico)
+    plt.figure(figsize=(10, 4))
+    if "Time" in df.columns and "Class" in df.columns:
+        sns.histplot(data=df, x="Time", hue="Class", element="step", stat="density", common_norm=False, palette=["navy", "crimson"])
+        plt.title("Distribución de Transacciones a lo largo del Tiempo")
+        plt.xlabel("Tiempo (segundos)")
+        plt.ylabel("Densidad")
 
-    def time_distribution(self, frame: pd.DataFrame) -> None:
-        fraud_frame = frame[frame["Class"] == 1]
-        _, axes = plt.subplots(1, 2, figsize=(16, 5))
-        sns.histplot(data=frame, x="Time", bins=24,
-                     color="lightblue", ax=axes[0])
-        sns.histplot(data=fraud_frame, x="Time",
-                     bins=24, color="red", ax=axes[1])
-        axes[0].set_title("Distribución de Transacciones en el Tiempo")
-        axes[1].set_title("Distribución de Fraudes en el Tiempo")
-        plt.suptitle(
-            "Distribution of transactions and fraudulent transactions over time")
-        self._save("time_distribution.png")
-
-    def _save(self, filename: str) -> None:
-        output_path = self.output_dir / filename
-        plt.savefig(output_path, bbox_inches="tight")
-        plt.close()  # <-- Cierra la figura para liberar memoria y evitar superposiciones
-        logger.info(f"Saved {output_path}")
-
-
-@app.command()
-def main(
-    input_path: Path = PROCESSED_DATA_DIR /
-        "dataset.csv",  # <-- Lee del dataset procesado
-    output_dir: Path = FIGURES_DIR,
-) -> None:
-    dataset = CreditCardDataset(data_path=input_path)
-    frame = dataset.load()
-
-    plots = ExploratoryPlots(output_dir=output_dir)
-    plots.class_distribution(frame)
-    plots.correlation_heatmap(frame)
-    plots.amounts_by_class(frame)
-    plots.time_distribution(frame)
+    time_path = FIGURES_DIR / "time_distribution.png"
+    plt.tight_layout()
+    plt.savefig(time_path)
+    plt.close()
+    logger.success(f"Gráfico guardado en: {time_path}")
 
 
 if __name__ == "__main__":
-    app()
+    main()

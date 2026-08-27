@@ -25,8 +25,8 @@ stages:
       size: 151102405
     - path: mlops_fraudulent_transactions/features.py
       hash: md5
-      md5: 32f4794beb88a1a5b6002d51992119c3
-      size: 4376
+      md5: f8c4680ba4629dd5c99b15b79e0e11f6
+      size: 3968
     params:
       params.yaml:
         prepare.random_state: 42
@@ -57,25 +57,25 @@ stages:
       size: 151102405
     - path: mlops_fraudulent_transactions/plots.py
       hash: md5
-      md5: 44e6b70d1e18256c864a11322ca8968d
-      size: 3424
+      md5: 605d98a5cb1725f6641289063250730a
+      size: 2933
     outs:
     - path: reports/figures/amounts_by_class.png
       hash: md5
-      md5: ee4fb66907ba6a4a082a6784f71ac433
-      size: 42331
+      md5: e125dd6e5ad7dc91e4b1fcba8dc3667f
+      size: 23926
     - path: reports/figures/class_distribution.png
       hash: md5
-      md5: c25ea63e0e7977feb60a2a038fa4a029
-      size: 16058
+      md5: bc77002e29fc3451a3a7486bf7aade4a
+      size: 18818
     - path: reports/figures/correlation_heatmap.png
       hash: md5
-      md5: d2fecdf18cdfc248e3b13fdfb8b4d9c7
-      size: 43788
+      md5: 8cedba70093aaac704a8de6b0fb3092d
+      size: 48770
     - path: reports/figures/time_distribution.png
       hash: md5
-      md5: 8ef8ed32c112478b1906e844a9a22e82
-      size: 37723
+      md5: 75003f3c01fb4b4f730aa450eb82f0b5
+      size: 27675
   train:
     cmd: python mlops_fraudulent_transactions/modeling/train.py
     deps:
@@ -89,20 +89,20 @@ stages:
       size: 683542
     - path: mlops_fraudulent_transactions/modeling/autoencoder.py
       hash: md5
-      md5: 19b07ac2be086f36010956723646acca
-      size: 3004
+      md5: 145634861d2d3747c102c4a201b76849
+      size: 3005
     - path: mlops_fraudulent_transactions/modeling/base.py
       hash: md5
       md5: e944c18d962b20b2b2720397df11cf0b
       size: 1480
     - path: mlops_fraudulent_transactions/modeling/mlp.py
       hash: md5
-      md5: ccf4d47de9b1b1de7abd8e66594852c1
-      size: 2828
+      md5: 099d57aeb63e4736dc6d95fa70b36ed1
+      size: 2721
     - path: mlops_fraudulent_transactions/modeling/train.py
       hash: md5
-      md5: 4211c65beff7e9f0f6be769845179672
-      size: 3033
+      md5: 896cb933997bf65eb3aba11c81c1a489
+      size: 3186
     params:
       params.yaml:
         train.batch_size: 2048
@@ -111,45 +111,45 @@ stages:
     outs:
     - path: models/model_autoencoder.keras
       hash: md5
-      md5: 4723cc79b3198b8354decb4f05836f0f
-      size: 48265
+      md5: 448b739e2285a26b72e67560724cbb9a
+      size: 54964
     - path: models/model_mlp.keras
       hash: md5
-      md5: de43ccb1cba996f862932e0a27af2714
-      size: 227405
+      md5: 7096685a9aafa53b7b5fc2b457b1ae76
+      size: 94108
   evaluate:
     cmd: python mlops_fraudulent_transactions/modeling/predict.py
     deps:
     - path: data/processed/test_features.csv
       hash: md5
-      md5: e6f267b02889fefcbba187ad248b9558
-      size: 31512247
+      md5: ab91894c6a7f579312792dbacd82308e
+      size: 31569210
     - path: data/processed/test_labels.csv
       hash: md5
-      md5: 2da48f5787220fce144c581a726064bb
-      size: 113930
+      md5: 139122f285f3641a4e93d0993fc00bc0
+      size: 170893
     - path: mlops_fraudulent_transactions/modeling/predict.py
       hash: md5
-      md5: da23c6220222e07c829771bfd9c2f1a1
-      size: 5499
+      md5: 45322a0ac5af9018b58facebeccae761
+      size: 6642
     - path: models/model_autoencoder.keras
       hash: md5
-      md5: 9887e7c142996dbdd0758cd76c2363ff
-      size: 54970
+      md5: 448b739e2285a26b72e67560724cbb9a
+      size: 54964
     - path: models/model_mlp.keras
       hash: md5
-      md5: 20a44478c977104406205f90e0d6254d
-      size: 94122
+      md5: 7096685a9aafa53b7b5fc2b457b1ae76
+      size: 94108
     outs:
     - path: data/processed/predictions.csv
       hash: md5
-      md5: 98d81354be5b1c8e70542680db4dd38e
-      size: 289
+      md5: c3a0d3b138966bf264f11050451db6d3
+      size: 341
     - path: metrics/eval.json
       hash: md5
-      md5: a0829426a5a22c18fca52f53e51a3f4b
-      size: 542
+      md5: 117a785c859a1a1f3947b331c58bcf0c
+      size: 610
     - path: reports/figures/pr_curve_comparison.png
       hash: md5
-      md5: df7dac62d532b7e0c1d112e265652048
-      size: 37957
+      md5: 28c0d0e3f47329dbba2d5305dc88f282
+      size: 41371
