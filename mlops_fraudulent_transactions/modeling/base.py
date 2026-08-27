@@ -1,13 +1,14 @@
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from pathlib import Path
+
 from loguru import logger
 import numpy as np
 from tensorflow import keras
 
-class BaseModel(ABC):
-    """Common interface for the deep learning models used in the pipeline."""
 
+class BaseModel(ABC):
     def __init__(self, input_dim: int) -> None:
         self.input_dim = input_dim
         self.model: keras.Model | None = None
@@ -20,7 +21,7 @@ class BaseModel(ABC):
     @abstractmethod
     def train(
         self,
-        X_train: np.ndarray,
+        x_train: np.ndarray,
         y_train: np.ndarray | None = None,
         checkpoint_path: Path = Path(""),
         epochs: int = 30,

@@ -1,13 +1,16 @@
 from __future__ import annotations
+
 from pathlib import Path
-from loguru import logger
+
 import numpy as np
+from loguru import logger
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 
 from mlops_fraudulent_transactions.config import MLP_MODEL_PATH
 from mlops_fraudulent_transactions.modeling.base import BaseModel
+
 
 class MLPModel(BaseModel):
     """Supervised multi-layer perceptron for binary fraud classification."""
@@ -48,7 +51,7 @@ class MLPModel(BaseModel):
 
     def train(
         self,
-        X_train: np.ndarray,
+        x_train: np.ndarray,
         y_train: np.ndarray,
         checkpoint_path: Path = MLP_MODEL_PATH,
         epochs: int = 30,
@@ -59,7 +62,12 @@ class MLPModel(BaseModel):
         if self.model is None:
             raise RuntimeError("Call build() before training.")
         callbacks = [
-            EarlyStopping(monitor="val_pr_auc", mode="max", patience=5, restore_best_weights=True),
+            EarlyStopping(
+                monitor="val_pr_auc",
+                mode="max",
+                patience=5,
+                restore_best_weights=True
+            ),
             ModelCheckpoint(
                 str(checkpoint_path),
                 monitor="val_pr_auc",
@@ -68,7 +76,7 @@ class MLPModel(BaseModel):
             ),
         ]
         self.history = self.model.fit(
-            X_train,
+            x_train,
             y_train,
             validation_split=validation_split,
             epochs=epochs,

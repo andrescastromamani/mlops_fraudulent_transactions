@@ -1,4 +1,4 @@
-# Entornos virtuales de Python y caché
+# Environments 
 .venv/
 venv/
 env/
@@ -8,31 +8,31 @@ __pycache__/
 *.pyd
 .pytest_cache/
 
-# Git y DVC (no deben entrar a la imagen final)
+# Git y DVC
 .git/
 .gitignore
 .dvc/cache/
 .dvc/tmp/
 
-# Archivos de datos locales pesados (rastreados por DVC)
+# DVC outputs
 data/
 *.csv
 *.parquet
 
-# Base de datos y logs de MLflow local (se deben consultar externamente)
+# MLflow outputs
 mlruns/
 *.db
 *.sqlite
 *.sqlite3
 *.log
 
-# Archivos del sistema y configuraciones de IDE/OS
+# IDE and operating system files
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
 
-# Documentación, reportes y gráficos que no consume la API
+# Documentation and reports
 reports/
 figures/
 docs/

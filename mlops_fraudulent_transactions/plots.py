@@ -1,4 +1,3 @@
-from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -20,7 +19,7 @@ def main():
     logger.info("Cargando dataset para generar gráficos...")
     df = pd.read_csv(DATA_PROCESSED_PATH)
 
-    # 1. Gráfico de distribución de clases
+    # Graphic of class distribution
     plt.figure(figsize=(6, 4))
     if "Class" in df.columns:
         df["Class"].value_counts().plot(kind="bar", color=["navy", "crimson"])
@@ -36,6 +35,8 @@ def main():
     logger.success(f"Gráfico guardado en: {class_dist_path}")
 
     # 2. Mapa de calor de correlación
+    
+    # 
     plt.figure(figsize=(10, 8))
     corr = df.corr()
     sns.heatmap(corr, cmap="coolwarm", annot=False, fmt=".2f")
