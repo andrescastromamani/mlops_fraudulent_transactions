@@ -1,225 +1,162 @@
-from mlops_fraudulent_transactions.config import (
-    AUTOENCODER_MODEL_PATH,
-    MLP_MODEL_PATH,
-    AMOUNT_SCALER_PATH,
-    TIME_SCALER_PATH,
-    PROCESSED_DATA_DIR,
-)
-from contextlib import asynccontextmanager
-import sys
-from pathlib import Path
-
 import joblib
 import numpy as np
 import pandas as pd
+from pathlib import Path
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
-from tensorflow import keras
+from typing import List
 
-# Config the PATH to detect the local package
-PACKAGE_ROOT = Path(__file__).resolve().parents[2]
-if str(PACKAGE_ROOT) not in sys.path:
-    sys.path.insert(0, str(PACKAGE_ROOT))
-
-
-#Global variables to hold the models
-mlp_model: keras.Model | None = None
-autoencoder_model: keras.Model | None = None
-amount_scaler = None
-time_scaler = None
-autoencoder_threshold: float = 0.5
-MODEL_INFO = {
-    "mlp": str(MLP_MODEL_PATH),
-    "autoencoder": str(AUTOENCODER_MODEL_PATH),
-}
-
-#Lifecycle event to load models
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    global mlp_model, autoencoder_model, amount_scaler, time_scaler, autoencoder_threshold
-    try:
-        if Path(MLP_MODEL_PATH).exists():
-            mlp_model = keras.models.load_model(MLP_MODEL_PATH)
-            print(f"[FastAPI] MLP cargado exitosamente desde {MLP_MODEL_PATH}")
-        else:
-            print(
-                f"[FastAPI ADVERTENCIA] No existe el archivo: {MLP_MODEL_PATH}")
-    except Exception as e:
-        print(f"[FastAPI ERROR] No se pudo cargar MLP: {e}")
-
-    try:
-        if Path(AUTOENCODER_MODEL_PATH).exists():
-            autoencoder_model = keras.models.load_model(AUTOENCODER_MODEL_PATH)
-            print(
-                f"[FastAPI] Autoencoder cargado exitosamente desde {AUTOENCODER_MODEL_PATH}")
-        else:
-            print(
-                f"[FastAPI ADVERTENCIA] No existe el archivo: {AUTOENCODER_MODEL_PATH}")
-    except Exception as e:
-        print(f"[FastAPI ERROR] No se pudo cargar Autoencoder: {e}")
-
-    # Cargar scalers
-    try:
-        if Path(AMOUNT_SCALER_PATH).exists():
-            amount_scaler = joblib.load(AMOUNT_SCALER_PATH)
-            print(f"[FastAPI] Amount scaler cargado desde {AMOUNT_SCALER_PATH}")
-        if Path(TIME_SCALER_PATH).exists():
-            time_scaler = joblib.load(TIME_SCALER_PATH)
-            print(f"[FastAPI] Time scaler cargado desde {TIME_SCALER_PATH}")
-    except Exception as e:
-        print(f"[FastAPI ERROR] No se pudieron cargar scalers: {e}")
-
-    # Calcular threshold del Autoencoder
-    try:
-        train_features_path = PROCESSED_DATA_DIR / "train_features.csv"
-        train_labels_path = PROCESSED_DATA_DIR / "train_labels.csv"
-        if train_features_path.exists() and train_labels_path.exists() and autoencoder_model is not None:
-            x_train = pd.read_csv(train_features_path).to_numpy()
-            y_train = pd.read_csv(train_labels_path).to_numpy().ravel()
-            x_train_normal = x_train[y_train == 0]
-
-            from mlops_fraudulent_transactions.modeling import AutoencoderModel
-            autoencoder_wrapper = AutoencoderModel(x_train.shape[1])
-            autoencoder_wrapper.model = autoencoder_model
-            autoencoder_threshold = autoencoder_wrapper.anomaly_threshold(x_train_normal)
-            print(f"[FastAPI] Autoencoder threshold calculado: {autoencoder_threshold:.4f}")
-    except Exception as e:
-        print(f"[FastAPI ERROR] No se pudo calcular threshold: {e}")
-
-    yield
-
-    # Clean up models on shutdown
-    mlp_model = None
-    autoencoder_model = None
-    amount_scaler = None
-    time_scaler = None
-
+# Importación corregida a la estructura mlops_fraudulent_transactions
+from mlops_fraudulent_transactions.api.model_loader import load_model, get_model_metadata, MODEL_NAME
 
 app = FastAPI(
-    title="API Fraudulent Transactions MLOps",
-    description="API MLOps to predict fraudulent transactions using MLP and Autoencoder models.",
-    version="1.0.0",
-    lifespan=lifespan,
+    title="API de Detección de Fraude en Tarjetas de Crédito",
+    description="API MLOps modular con integración a MLflow.",
+    version="1.0.0"
 )
 
-# Eschema definition (Pydantic)
+model = None
+model_version_info = {"version": "Desconocida", "run_id": "Desconocido"}
+
+# Carga del Scaler ajustada a la estructura de carpetas actual
+BASE_DIR = Path(__file__).resolve().parent.parent
+SCALER_PATH = BASE_DIR / "models" / "scaler.pkl"
+
+scaler = None
+if SCALER_PATH.exists():
+    scaler = joblib.load(SCALER_PATH)
+    print(f"[FastAPI] Scaler cargado exitosamente desde {SCALER_PATH}")
+else:
+    # Ruta alternativa de respaldo si el modelo está dentro de la raíz
+    ALT_SCALER_PATH = Path(__file__).resolve().parent.parent.parent / "models" / "scaler.pkl"
+    if ALT_SCALER_PATH.exists():
+        scaler = joblib.load(ALT_SCALER_PATH)
+        print(f"[FastAPI] Scaler cargado desde ruta alternativa: {ALT_SCALER_PATH}")
+    else:
+        print(f"[FastAPI WARNING] No se encontró el scaler en {SCALER_PATH}. Aplicando estandarización de respaldo.")
+
+# Medias y desviaciones estándar globales del dataset original para respaldo
+MEAN_TIME, STD_TIME = 94813.86, 47488.15
+MEAN_AMOUNT, STD_AMOUNT = 88.34, 250.12
+
+def preprocesar_entrada_respaldo(df: pd.DataFrame) -> pd.DataFrame:
+    df_scaled = df.copy()
+    if "Time" in df_scaled.columns:
+        df_scaled["Time"] = (df_scaled["Time"] - MEAN_TIME) / STD_TIME
+    if "Amount" in df_scaled.columns:
+        df_scaled["Amount"] = (df_scaled["Amount"] - MEAN_AMOUNT) / STD_AMOUNT
+    return df_scaled
+
+@app.on_event("startup")
+def startup_event():
+    global model, model_version_info
+    model = load_model()
+    model_version_info = get_model_metadata()
+    if model:
+        print(f"[FastAPI] Modelo v{model_version_info['version']} cargado exitosamente.")
+    else:
+        print("[FastAPI ERROR] No se pudo cargar el modelo.")
+
 class TransactionFeatures(BaseModel):
-    time: float = Field(..., alias="Time")
-    v1: float = Field(..., alias="V1")
-    v2: float = Field(..., alias="V2")
-    v3: float = Field(..., alias="V3")
-    v4: float = Field(..., alias="V4")
-    v5: float = Field(..., alias="V5")
-    v6: float = Field(..., alias="V6")
-    v7: float = Field(..., alias="V7")
-    v8: float = Field(..., alias="V8")
-    v9: float = Field(..., alias="V9")
-    v10: float = Field(..., alias="V10")
-    v11: float = Field(..., alias="V11")
-    v12: float = Field(..., alias="V12")
-    v13: float = Field(..., alias="V13")
-    v14: float = Field(..., alias="V14")
-    v15: float = Field(..., alias="V15")
-    v16: float = Field(..., alias="V16")
-    v17: float = Field(..., alias="V17")
-    v18: float = Field(..., alias="V18")
-    v19: float = Field(..., alias="V19")
-    v20: float = Field(..., alias="V20")
-    v21: float = Field(..., alias="V21")
-    v22: float = Field(..., alias="V22")
-    v23: float = Field(..., alias="V23")
-    v24: float = Field(..., alias="V24")
-    v25: float = Field(..., alias="V25")
-    v26: float = Field(..., alias="V26")
-    v27: float = Field(..., alias="V27")
-    v28: float = Field(..., alias="V28")
-    amount: float = Field(..., alias="Amount")
-
-    model_config = {
-        "populate_by_name": True  # 'Time' o 'time'
-    }
-
+    Time: float = Field(..., example=0.0)
+    V1: float = Field(..., example=-1.359807)
+    V2: float = Field(..., example=-0.072781)
+    V3: float = Field(..., example=2.536347)
+    V4: float = Field(..., example=1.378155)
+    V5: float = Field(..., example=-0.338321)
+    V6: float = Field(..., example=0.462388)
+    V7: float = Field(..., example=0.239599)
+    V8: float = Field(..., example=0.098698)
+    V9: float = Field(..., example=0.363787)
+    V10: float = Field(..., example=0.090794)
+    V11: float = Field(..., example=-0.551600)
+    V12: float = Field(..., example=-0.617801)
+    V13: float = Field(..., example=-0.991390)
+    V14: float = Field(..., example=-0.311169)
+    V15: float = Field(..., example=1.468177)
+    V16: float = Field(..., example=-0.470401)
+    V17: float = Field(..., example=0.207971)
+    V18: float = Field(..., example=0.025791)
+    V19: float = Field(..., example=0.403993)
+    V20: float = Field(..., example=0.251412)
+    V21: float = Field(..., example=-0.018307)
+    V22: float = Field(..., example=0.277838)
+    V23: float = Field(..., example=-0.110474)
+    V24: float = Field(..., example=0.066928)
+    V25: float = Field(..., example=0.128539)
+    V26: float = Field(..., example=-0.189115)
+    V27: float = Field(..., example=0.133558)
+    V28: float = Field(..., example=-0.021053)
+    Amount: float = Field(..., example=149.62)
 
 class PredictionRequest(BaseModel):
-    data: list[TransactionFeatures]
+    data: List[TransactionFeatures]
 
-# Endpoints 
-@app.get("/")
+@app.get("/", include_in_schema=False)
 def read_root():
-    return {
-        "status": "Online",
-        "models": {
-            "mlp_loaded": mlp_model is not None,
-            "autoencoder_loaded": autoencoder_model is not None,
-        },
-        "model_paths": MODEL_INFO,
-    }
-
-
-@app.get("/health")
-def health_check():
-    return {
-        "status": "healthy" if (mlp_model is not None or autoencoder_model is not None) else "degraded",
-        "mlp_loaded": mlp_model is not None,
-        "autoencoder_loaded": autoencoder_model is not None,
-    }
-
+    return RedirectResponse(url="/docs")
 
 @app.post("/predict")
 def predict(payload: PredictionRequest):
-    if mlp_model is None and autoencoder_model is None:
+    if model is None:
         raise HTTPException(
-            status_code=500,
-            detail="Models are not loaded. Please check the server logs for errors during model loading.",
+            status_code=500, 
+            detail="El modelo no está cargado en memoria."
         )
-
+    
     try:
-        # Convert received data to a Pandas DataFrame
-        input_data = pd.DataFrame(
-            [item.model_dump(by_alias=True) for item in payload.data])
-
-        # Escalar Time y Amount
-        if amount_scaler is not None and time_scaler is not None:
-            input_data["scaled_amount"] = amount_scaler.transform(
-                input_data["Amount"].values.reshape(-1, 1))
-            input_data["scaled_time"] = time_scaler.transform(
-                input_data["Time"].values.reshape(-1, 1))
-            # Seleccionar columnas en orden: V1-V28, scaled_amount, scaled_time
-            feature_cols = [f"V{i}" for i in range(1, 29)] + ["scaled_amount", "scaled_time"]
-            X = input_data[feature_cols].to_numpy()
+        input_data = pd.DataFrame([item.dict() for item in payload.data])
+        
+        # Procesamiento de datos con Scaler pkl o respaldo
+        if scaler is not None:
+            scaled_data = scaler.transform(input_data)
         else:
-            # Fallback: usar datos sin escalar (no recomendado)
-            feature_cols = ["Time"] + [f"V{i}" for i in range(1, 29)] + ["Amount"]
-            X = input_data[feature_cols].to_numpy()
+            df_preprocessed = preprocesar_entrada_respaldo(input_data)
+            scaled_data = df_preprocessed.values
 
+        raw_predictions = model.predict(scaled_data)
+        
         results = []
+        if hasattr(raw_predictions, "shape") and raw_predictions.shape == scaled_data.shape:
+            mse_errors = np.mean(np.square(scaled_data - raw_predictions), axis=1)
+        else:
+            mse_errors = np.array(raw_predictions).flatten()
 
-        mlp_probs = mlp_model.predict(
-            X, verbose=0).ravel() if mlp_model is not None else None
-        reconstructed = autoencoder_model.predict(
-            X, verbose=0) if autoencoder_model is not None else None
+        THRESHOLD = 0.50
 
-        for i in range(len(input_data)):
-            result: dict = {"index": i}
+        for i, mse in enumerate(mse_errors):
+            reconstruction_error = float(mse)
+            is_fraud = bool(reconstruction_error > THRESHOLD)
+            
+            prob_fraud = float(1 / (1 + np.exp(-(reconstruction_error - THRESHOLD))))
+            prob_fraud = float(np.clip(prob_fraud, 0.0, 1.0))
+            prob_legit = float(1.0 - prob_fraud)
+            
+            confidence = prob_fraud if is_fraud else prob_legit
 
-            if mlp_probs is not None:
-                prob = float(mlp_probs[i])
-                result["mlp_fraud_probability"] = round(prob, 4)
-                result["mlp_prediction"] = "Fraude" if prob >= 0.5 else "Legítimo"
-
-            if reconstructed is not None:
-                mse = float(np.mean(np.square(X[i] - reconstructed[i])))
-                result["autoencoder_reconstruction_error"] = round(mse, 6)
-                result["autoencoder_prediction"] = "Fraude" if mse > autoencoder_threshold else "Legítimo"
-
-            results.append(result)
+            results.append({
+                "index": i,
+                "is_fraud": is_fraud,
+                "diagnosis": "Fraude Detectado" if is_fraud else "Transacción Legítima",
+                "reconstruction_error": round(reconstruction_error, 4),
+                "confidence_score": round(confidence * 100, 2),
+                "probabilities_detail": {
+                    "fraud": round(prob_fraud, 4),
+                    "legitimate": round(prob_legit, 4)
+                }
+            })
 
         return {
+            "model_metadata": {
+                "name": MODEL_NAME,
+                "version": model_version_info["version"],
+                "run_id": model_version_info["run_id"]
+            },
             "total_predictions": len(results),
             "results": results,
-            "message": "Completed successfully",
+            "message": "Inferencia completada con éxito."
         }
 
     except Exception as e:
-        raise HTTPException(
-            status_code=400, detail=f"Error during inference: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Error durante la inferencia: {str(e)}")
